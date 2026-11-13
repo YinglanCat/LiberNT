@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools', 'elf2pe'))
 
 from elf2pe import ElfImage, build_image
@@ -68,7 +69,6 @@ def main(argv):
         kind != 'exe')
     with open(target, 'wb') as output:
         output.write(image)
-    os.unlink(elf_image)
 
     print(f'{target}: {len(sections)} sections, entry 0x{shift:x} shift, '
           f'{patched} fixups, {skipped} other relocations')
