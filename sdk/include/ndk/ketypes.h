@@ -4010,7 +4010,13 @@ typedef struct _KENTROPY_TIMING_STATE
 //
 // Exported Loader Parameter Block
 //
+#if defined(_LOONGARCH64_) && !defined(_NTSYSTEM_)
+/* The ELF import slot holds the address of the imported variable. */
+extern PVOID __imp_KeLoaderBlock;
+#define KeLoaderBlock (*(PLOADER_PARAMETER_BLOCK *)(void *)__imp_KeLoaderBlock)
+#else
 extern struct _LOADER_PARAMETER_BLOCK NTSYSAPI *KeLoaderBlock;
+#endif
 
 //
 // Exported Hardware Data

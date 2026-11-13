@@ -6,6 +6,7 @@ COPYRIGHT:   Copyright 2026 Zhou Ji Yang <yinglanxing@gmail.com>
 """
 
 import os
+import re
 import shutil
 import struct
 import subprocess
@@ -33,6 +34,7 @@ STV_HIDDEN = 2
 R_LARCH_PCALA_HI20 = 71
 R_LARCH_PCALA_LO12 = 72
 
+REL_BASED_DIR64 = 10
 SLOT_SIZE = 8
 THUNK_SIZE = 12
 T0 = 12
@@ -53,6 +55,7 @@ EXPORTS
 """
 
 NAMES = ['MessageBoxA', 'CreateFileW', 'Ordinal', 'NoName']
+DATA_NAMES = ['Data1', 'Constant1']
 
 REFERENCE = """\
     .text
@@ -81,6 +84,45 @@ void caller(void)
 {
     MessageBoxA();
     CreateFileW();
+}
+"""
+
+# A library that exports one data object and one function. The export
+# description is the `.def` style input elf2pe turns into a directory.
+EXPORTER = """\
+char Data1[8] = { 'p', 'a', 'y', 'l', 'o', 'a', 'd', 0 };
+
+int ExportedFn(void)
+{
+    return Data1[0];
+}
+"""
+
+EXPORTER_DESCRIPTION = """\
+NAME rexport.dll
+
+EXPORTS
+ Data1 @1 DATA
+ ExportedFn @2
+"""
+
+DATA_DESCRIPTION = """\
+NAME rexport.dll
+
+EXPORTS
+ Data1 DATA
+"""
+
+# `__imp_Data1` is the address of the import address table slot, which the
+# loader fills with the address of rexport.dll's `Data1`.
+DATA_CALLER = """\
+extern void *__imp_Data1;
+
+void *imported_slot = &__imp_Data1;
+
+int imported_read(void)
+{
+    return *(const char *)__imp_Data1;
 }
 """
 
@@ -175,23 +217,25 @@ def build_archive(directory):
     archive = os.path.join(directory, 'libfoo.a')
     output = run([sys.executable, TOOL, '-d', os.path.join(directory, 'foo_implib.def'),
                   '-o', archive, '--ar', find_tool(('llvm-ar-18', 'llvm-ar'))])
-    check('skipped 2 data imports' in output.stderr,
-          'the data and constant imports were not reported as skipped')
+    check(f'{len(NAMES)} thunks and {len(DATA_NAMES)} data slots' in output.stdout,
+          f'unexpected summary: {output.stdout.strip()}')
     return archive
 
 
 def check_object(directory, archive):
-    """One archive member per import, each with a thunk, its slot and a record."""
+    """One archive member per import: a thunk and its slot, or a data slot."""
     member = os.path.join(directory, 'member')
     os.mkdir(member)
     run([find_tool(('llvm-ar-18', 'llvm-ar')), 'x', archive], cwd=member)
     members = sorted(os.listdir(member))
-    check(members == [f'{index:04d}_{name}.o' for index, name in enumerate(NAMES)],
+    check(members == [f'{index:04d}_{name}.o'
+                      for index, name in enumerate(NAMES + DATA_NAMES)],
           f'unexpected archive members {members}')
 
     iat_name = '.iat$foo.dll'
     first_thunk = b''
-    for index, name in enumerate(NAMES):
+    for index, name in enumerate(NAMES + DATA_NAMES):
+        data = index >= len(NAMES)
         image = Image(open(os.path.join(member, members[index]), 'rb').read())
         check(image.type == 1, 'the object is not relocatable')
         check(image.machine == EM_LOONGARCH, 'wrong machine')
@@ -205,10 +249,13 @@ def check_object(directory, archive):
               'the import sections are missing')
 
         text = image.contents('.text')
-        check(len(text) == THUNK_SIZE,
-              f'{name}: {len(text)} bytes of text, expected one thunk')
-        if index == 0:
-            first_thunk = text
+        if data:
+            check(not text, f'{name}: a data import must not carry a thunk')
+        else:
+            check(len(text) == THUNK_SIZE,
+                  f'{name}: {len(text)} bytes of text, expected one thunk')
+            if index == 0:
+                first_thunk = text
 
         iat = image.section(iat_name)
         check(iat[2] == SHF_ALLOC | SHF_WRITE, f'{name}: the slot section is not writable data')
@@ -220,10 +267,17 @@ def check_object(directory, archive):
         symbols = image.symbols()
         thunks = [symbol for symbol in symbols if symbol['type'] == STT_FUNC]
         slots = [symbol for symbol in symbols if symbol['type'] == STT_OBJECT]
-        check([symbol['name'] for symbol in thunks] == [name],
-              f'{name}: wrong thunk symbol')
-        check(thunks[0]['section'] == 1 and thunks[0]['value'] == 0 and
-              thunks[0]['size'] == THUNK_SIZE, f'{name}: the thunk is not in .text')
+        if data:
+            # Only __imp_<name> exists: defining <name> too would make a caller
+            # that names the variable read the slot's address as the variable.
+            check(not thunks, f'{name}: a data import must not define a thunk')
+            check(name not in [symbol['name'] for symbol in symbols],
+                  f'{name}: a data import must not define the variable name')
+        else:
+            check([symbol['name'] for symbol in thunks] == [name],
+                  f'{name}: wrong thunk symbol')
+            check(thunks[0]['section'] == 1 and thunks[0]['value'] == 0 and
+                  thunks[0]['size'] == THUNK_SIZE, f'{name}: the thunk is not in .text')
         check([symbol['name'] for symbol in slots] == ['__imp_' + name],
               f'{name}: wrong slot symbol')
         check(slots[0]['section'] == names.index(iat_name) and slots[0]['value'] == 0,
@@ -234,9 +288,12 @@ def check_object(directory, archive):
                    and symbol['name']], f'{name}: the object has undefined symbols')
 
         relocations = image.relocations()
-        check(relocations == [(0, R_LARCH_PCALA_HI20, 2, 0),
-                              (4, R_LARCH_PCALA_LO12, 2, 0)],
-              f'{name}: unexpected relocations {relocations}')
+        if data:
+            check(relocations == [], f'{name}: a data slot needs no relocation')
+        else:
+            check(relocations == [(0, R_LARCH_PCALA_HI20, 2, 0),
+                                  (4, R_LARCH_PCALA_LO12, 2, 0)],
+                  f'{name}: unexpected relocations {relocations}')
 
         record = image.contents('.libimports')
         check(record == b'foo.dll\0' + name.encode() + b'\0\0',
@@ -258,45 +315,105 @@ def check_reference_assembler(directory, text, clang):
           'the thunk differs from what clang assembles')
 
 
-def read_pe_imports(path):
-    """Return (DLL, [(slot rva, name)]) from the import directory of a PE32+ file."""
-    data = open(path, 'rb').read()
-    pe = struct.unpack_from('<I', data, 0x3C)[0]
-    check(data[pe:pe + 4] == b'PE\0\0', 'not a PE file')
-    count = struct.unpack_from('<H', data, pe + 6)[0]
-    optional_size = struct.unpack_from('<H', data, pe + 20)[0]
-    optional = pe + 24
-    table = optional + optional_size
+class PeImage:
+    """Just enough PE32+ to inspect what elf2pe writes."""
 
-    sections = []
-    for index in range(count):
-        name, size, rva, _, raw = struct.unpack_from('<8sIIII', data, table + 40 * index)
-        sections.append((name.rstrip(b'\0').decode(), rva, size, raw))
+    def __init__(self, path):
+        self.data = open(path, 'rb').read()
+        pe = struct.unpack_from('<I', self.data, 0x3C)[0]
+        check(self.data[pe:pe + 4] == b'PE\0\0', 'not a PE file')
+        count = struct.unpack_from('<H', self.data, pe + 6)[0]
+        optional_size = struct.unpack_from('<H', self.data, pe + 20)[0]
+        optional = pe + 24
+        table = optional + optional_size
+        self.image_base = struct.unpack_from('<Q', self.data, optional + 24)[0]
+        self.directories = [struct.unpack_from('<II', self.data,
+                                               optional + 112 + 8 * index)
+                            for index in range(16)]
+        self.sections = []
+        for index in range(count):
+            name, size, rva, _, raw = struct.unpack_from(
+                '<8sIIII', self.data, table + 40 * index)
+            self.sections.append((name.rstrip(b'\0').decode(), rva, size, raw))
 
-    image_base = struct.unpack_from('<Q', data, optional + 24)[0]
-    directory_rva, _ = struct.unpack_from('<II', data, optional + 112 + 8)
-
-    def section_of(rva):
-        for _, start, size, raw in sections:
+    def offset(self, rva):
+        for _, start, size, raw in self.sections:
             if start <= rva < start + size:
                 return raw + rva - start
         raise SystemExit(f'FAIL: rva 0x{rva:x} is outside the image')
 
-    def string_at(rva):
-        start = section_of(rva)
-        return data[start:data.index(b'\0', start)].decode()
+    def string(self, rva):
+        start = self.offset(rva)
+        return self.data[start:self.data.index(b'\0', start)].decode()
 
-    offset = section_of(directory_rva)
-    lookup, _, _, name, thunk = struct.unpack_from('<IIIII', data, offset)
-    entries = []
-    while True:
-        value = struct.unpack_from('<Q', data, section_of(lookup))[0]
-        if value == 0:
-            break
-        entries.append((thunk, string_at(value + 2)))
-        lookup += SLOT_SIZE
-        thunk += SLOT_SIZE
-    return image_base, string_at(name), entries
+    def pointer(self, rva):
+        return struct.unpack_from('<Q', self.data, self.offset(rva))[0]
+
+    def imports(self):
+        """Return (DLL name, [(slot rva, name)]) from the first descriptor."""
+        directory_rva, _ = self.directories[1]
+        lookup, _, _, name, thunk = struct.unpack_from(
+            '<IIIII', self.data, self.offset(directory_rva))
+        entries = []
+        while True:
+            value = self.pointer(lookup)
+            if value == 0:
+                break
+            entries.append((thunk, self.string(value + 2)))
+            lookup += SLOT_SIZE
+            thunk += SLOT_SIZE
+        return self.string(name), entries
+
+    def exports(self):
+        """Return the module name, base, address table and name table."""
+        directory_rva, _ = self.directories[0]
+        check(directory_rva != 0, 'no export directory')
+        (_, _, _, _, name, base, count, names,
+         addresses, names_table, ordinals) = struct.unpack_from(
+            '<IIHHIIIIIII', self.data, self.offset(directory_rva))
+        functions = [struct.unpack_from('<I', self.data,
+                                        self.offset(addresses) + 4 * index)[0]
+                     for index in range(count)]
+        pairs = []
+        for index in range(names):
+            value = struct.unpack_from('<I', self.data,
+                                       self.offset(names_table) + 4 * index)[0]
+            ordinal = struct.unpack_from('<H', self.data,
+                                         self.offset(ordinals) + 2 * index)[0]
+            pairs.append((self.string(value), ordinal))
+        return {'name': self.string(name), 'base': base,
+                'functions': functions, 'names': pairs}
+
+    def relocations(self):
+        """Return [(rva, kind)] for every base relocation that is not absolute."""
+        directory_rva, size = self.directories[5]
+        start = self.offset(directory_rva)
+        entries = []
+        cursor = 0
+        while cursor < size:
+            page, block = struct.unpack_from('<II', self.data, start + cursor)
+            for index in range((block - 8) // 2):
+                value = struct.unpack_from(
+                    '<H', self.data, start + cursor + 8 + 2 * index)[0]
+                if value >> 12:
+                    entries.append((page | (value & 0xFFF), value >> 12))
+            cursor += block
+        return entries
+
+
+def read_pe_imports(path):
+    """Return (image base, DLL, [(slot rva, name)]) of a PE32+ file."""
+    image = PeImage(path)
+    library, entries = image.imports()
+    return image.image_base, library, entries
+
+
+def assemble(elf_path, pe_path, *arguments):
+    """Run elf2pe and return the shift it applied to the image."""
+    output = run([sys.executable, ELF2PE, elf_path, pe_path] + list(arguments))
+    match = re.search(r'shift 0x([0-9a-f]+)', output.stdout)
+    check(match is not None, 'elf2pe did not report the image shift')
+    return int(match.group(1), 16)
 
 
 def check_link(directory, archive, clang, linker):
@@ -374,6 +491,100 @@ def check_link(directory, archive, clang, linker):
           f'{", ".join(name for _, name in entries)}')
 
 
+def check_data_images(directory, clang, linker):
+    """A data import of a library that exports the object, end to end.
+
+    The exporter is linked and assembled with an export directory; the
+    importer links against def2elf's archive for the same description. What
+    has to come out: an export directory that names `Data1` at the object's
+    address, an import entry that points at the importer's slot, a DIR64
+    fixup over that slot, and a reference that resolves to the slot.
+    """
+    exporter_source = os.path.join(directory, 'exporter.c')
+    exporter_object = os.path.join(directory, 'exporter.o')
+    exporter_elf = os.path.join(directory, 'exporter.elf')
+    exporter_pe = os.path.join(directory, 'rexport.dll')
+    exporter_def = os.path.join(directory, 'rexport.def')
+    open(exporter_source, 'w').write(EXPORTER)
+    open(exporter_def, 'w').write(EXPORTER_DESCRIPTION)
+    run([clang, '--target=loongarch64-unknown-elf', '-ffreestanding', '-fno-pic',
+         '-O1', '-c', exporter_source, '-o', exporter_object])
+    run([linker, '-m', 'elf64loongarch', '--emit-relocs', '-o', exporter_elf,
+         '--entry', 'ExportedFn', exporter_object])
+
+    exporter = Image(open(exporter_elf, 'rb').read())
+    symbols = {symbol['name']: symbol for symbol in exporter.symbols()}
+    shift = assemble(exporter_elf, exporter_pe, '--subsystem', '10', '--dll',
+                     '--exports', exporter_def)
+    image = PeImage(exporter_pe)
+    table = image.exports()
+    check(table['name'] == 'rexport.dll', f"the export directory names {table['name']}")
+    check(table['names'] == [('Data1', 0), ('ExportedFn', 1)],
+          f"the export directory describes {table['names']}")
+    object_address = symbols['Data1']['value'] + shift
+    check(table['functions'][0] == object_address,
+          f"Data1 is exported at 0x{table['functions'][0]:x}, "
+          f'not 0x{object_address:x}')
+
+    implib_def = os.path.join(directory, 'rexport_implib.def')
+    archive_path = os.path.join(directory, 'librexport.a')
+    open(implib_def, 'w').write(DATA_DESCRIPTION)
+    output = run([sys.executable, TOOL, '-d', implib_def, '-o', archive_path,
+                  '--ar', find_tool(('llvm-ar-18', 'llvm-ar'))])
+    check('0 thunks and 1 data slots' in output.stdout,
+          f'unexpected summary: {output.stdout.strip()}')
+
+    importer_source = os.path.join(directory, 'importer.c')
+    importer_object = os.path.join(directory, 'importer.o')
+    importer_elf = os.path.join(directory, 'importer.elf')
+    importer_pe = os.path.join(directory, 'importer.exe')
+    open(importer_source, 'w').write(DATA_CALLER)
+    run([clang, '--target=loongarch64-unknown-elf', '-ffreestanding', '-fno-pic',
+         '-O1', '-c', importer_source, '-o', importer_object])
+    # --emit-relocs is what the build driver passes: elf2pe needs the
+    # relocations to build the base relocation directory.
+    run([linker, '-m', 'elf64loongarch', '--emit-relocs', '-o', importer_elf,
+         '--entry', 'imported_read', importer_object, archive_path])
+
+    importer = Image(open(importer_elf, 'rb').read())
+    symbols = {symbol['name']: symbol for symbol in importer.symbols()}
+    check('__imp_Data1' in symbols, 'def2elf did not define __imp_Data1')
+    check(symbols['__imp_Data1']['section'] != SHN_UNDEF,
+          'the data slot did not resolve')
+    check('MessageBoxA' not in symbols,
+          'importing data pulled an unrelated thunk out of the archive')
+
+    shift = assemble(importer_elf, importer_pe, '--subsystem', '10',
+                     '--image-base', hex(IMAGE_BASE))
+    image = PeImage(importer_pe)
+    check(image.image_base == IMAGE_BASE, 'elf2pe ignored the image base')
+
+    library, entries = image.imports()
+    check(library == 'rexport.dll', f'the import descriptor names {library}')
+    check([name for _, name in entries] == ['Data1'],
+          f'the import directory describes {[name for _, name in entries]}')
+    slot = symbols['__imp_Data1']['value'] + shift
+    check(entries[0][0] == slot,
+          f'the import entry points at 0x{entries[0][0]:x}, not the slot at 0x{slot:x}')
+    check(image.pointer(slot) == 0, 'the import address table slot is not empty')
+
+    # The loader writes an address into the slot, so the slot needs a fixup,
+    # and so does the reference the importer stored.
+    fixed = image.relocations()
+    check((slot, REL_BASED_DIR64) in fixed,
+          f'the import address table slot has no DIR64 fixup: {fixed}')
+    reference = symbols['imported_slot']['value'] + shift
+    check(image.pointer(reference) == IMAGE_BASE + slot,
+          f'imported_slot holds 0x{image.pointer(reference):x}, not '
+          f'0x{IMAGE_BASE + slot:x}')
+    check((reference, REL_BASED_DIR64) in fixed,
+          f'the reference has no DIR64 fixup: {fixed}')
+
+    print(f'  data import: rexport.dll exports Data1 at 0x{object_address:x}; '
+          f'importer slot 0x{slot:x}, reference 0x{reference:x}, fixed by '
+          f'{len(fixed)} DIR64 entries')
+
+
 def main():
     ar = find_tool(('llvm-ar-18', 'llvm-ar'))
     if not ar:
@@ -389,6 +600,7 @@ def main():
             check_reference_assembler(directory, text, clang)
             if linker:
                 check_link(directory, archive, clang, linker)
+                check_data_images(directory, clang, linker)
             else:
                 print('def2elf selftest: skipped the link check (no ld.lld)')
         else:

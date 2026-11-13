@@ -13,7 +13,7 @@ import sys
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'tools', 'elf2pe'))
 
-from elf2pe import ElfImage, build_image
+from elf2pe import ElfImage, build_image, parse_export_description, read_export_allowlist
 
 
 def classify(arguments):
@@ -23,9 +23,17 @@ def classify(arguments):
     entry = None
     image_base = None
     subsystem = None
+    exports = None
+    export_allowlists = []
+    undefined = []
 
     for argument in arguments:
-        if argument.endswith('.o') or argument.endswith('.obj'):
+        if argument.endswith('.def'):
+            # spec2def puts the module's .def in its source list, so CMake
+            # passes it on the link line. It describes the export directory
+            # elf2pe builds, and must not reach the ELF linker.
+            exports = argument
+        elif argument.endswith('.o') or argument.endswith('.obj'):
             objects.append(argument)
         elif argument.endswith('.a') or argument.endswith('.lib'):
             libraries.append(argument)
@@ -42,7 +50,8 @@ def classify(arguments):
                 word = words[index]
                 name = None
                 value = None
-                for known in ('--image-base', '--entry', '-entry', '-e', '--subsystem'):
+                for known in ('--image-base', '--entry', '-entry', '-e', '--subsystem',
+                              '--export-allowlist', '-u', '--undefined'):
                     if word == known and index + 1 < len(words):
                         name, value = known, words[index + 1]
                         index += 1
@@ -56,9 +65,14 @@ def classify(arguments):
                     entry = value
                 elif name == '--subsystem':
                     subsystem = value
+                elif name == '--export-allowlist':
+                    export_allowlists.append(value)
+                elif name in ('-u', '--undefined'):
+                    undefined.append(value)
                 index += 1
 
-    return objects, libraries, library_dirs, entry, image_base, subsystem
+    return (objects, libraries, library_dirs, entry, image_base, subsystem, exports,
+            export_allowlists, undefined)
 
 
 SUBSYSTEMS = {
@@ -83,7 +97,8 @@ def subsystem_number(text):
 def main(argv):
     kind = argv[0]
     target = argv[1]
-    objects, libraries, library_dirs, entry, image_base, subsystem = classify(argv[2:])
+    (objects, libraries, library_dirs, entry, image_base, subsystem, exports_path,
+     allowlist_paths, undefined) = classify(argv[2:])
 
     linker = os.environ.get('LOONGARCH64_LLD', 'ld.lld')
     elf_image = target + '.elf'
@@ -91,23 +106,35 @@ def main(argv):
     # cannot be rebased without it. The ELF stays at 0 because PE RVAs and the
     # entry point are offsets from ImageBase, which elf2pe folds in itself.
     command = [linker, '-m', 'elf64loongarch', '--emit-relocs', '-o', elf_image]
+    for symbol in undefined:
+        command += ['-u', symbol]
     if entry:
         command += ['--entry', entry]
     command += library_dirs + objects + libraries
     subprocess.run(command, check=True)
+
+    exports = None
+    if exports_path:
+        with open(exports_path, 'r', encoding='utf-8') as source:
+            exports = parse_export_description(source.read(), exports_path)
 
     elf = ElfImage(open(elf_image, 'rb').read())
     image, sections, shift, patched, skipped = build_image(
         elf,
         subsystem_number(subsystem),
         image_base if image_base is not None else 0,
-        kind != 'exe')
+        kind != 'exe',
+        exports,
+        read_export_allowlist(allowlist_paths))
     with open(target, 'wb') as output:
         output.write(image)
 
     print(f'{target}: {len(sections)} sections, image base 0x{image_base or 0:x}, '
           f'entry rva 0x{elf.entry + shift:x}, '
           f'{patched} fixups, {skipped} other relocations')
+    if exports is not None:
+        print(f'  exports {exports.library}: {len(exports.entries)} entries described by '
+              f'{exports_path}')
     return 0
 
 

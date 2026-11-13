@@ -465,8 +465,8 @@ int
 BootFontInitializeFace(
     _Inout_ PBOOT_FONT_RENDERER Renderer,
     _In_reads_bytes_(Size) const unsigned char* Data,
-    _In_ unsigned long Size,
-    _In_ unsigned long PixelHeight)
+    _In_ ULONG Size,
+    _In_ ULONG PixelHeight)
 {
     if (!Renderer || !Data || !Size || !PixelHeight)
         return FALSE;

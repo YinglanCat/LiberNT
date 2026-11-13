@@ -27,18 +27,18 @@ typedef struct _BOOT_FONT_GLYPH
     unsigned short Height;
     unsigned short Pitch;
     short Advance;
-    unsigned long BitmapOffset;
+    ULONG BitmapOffset;
 } BOOT_FONT_GLYPH, *PBOOT_FONT_GLYPH;
 
 typedef struct _BOOT_FONT_RENDERER
 {
     unsigned char Enabled;
-    unsigned long PixelHeight;
-    unsigned long CellWidth;
-    unsigned long CellHeight;
-    unsigned long Baseline;
+    ULONG PixelHeight;
+    ULONG CellWidth;
+    ULONG CellHeight;
+    ULONG Baseline;
     unsigned char* BitmapBuffer;
-    unsigned long BitmapSize;
+    ULONG BitmapSize;
     BOOT_FONT_GLYPH Glyphs[BOOT_FONT_GLYPH_COUNT];
 } BOOT_FONT_RENDERER, *PBOOT_FONT_RENDERER;
 
@@ -46,25 +46,25 @@ typedef struct _BOOT_FONT_RENDERER
 int
 BootFontInitialize(
     PBOOT_FONT_RENDERER Renderer,
-    unsigned long ScreenWidth,
-    unsigned long ScreenHeight);
+    ULONG ScreenWidth,
+    ULONG ScreenHeight);
 
 int
 BootFontInitializeMonochrome(
     PBOOT_FONT_RENDERER Renderer,
-    unsigned long PixelHeight);
+    ULONG PixelHeight);
 
 int
 BootFontInitializeFace(
     PBOOT_FONT_RENDERER Renderer,
     const unsigned char* Data,
-    unsigned long Size,
-    unsigned long PixelHeight);
+    ULONG Size,
+    ULONG PixelHeight);
 
 int
 BootFontInitializeUi(
     PBOOT_FONT_RENDERER Renderer,
-    unsigned long PixelHeight);
+    ULONG PixelHeight);
 
 void
 BootFontCleanup(

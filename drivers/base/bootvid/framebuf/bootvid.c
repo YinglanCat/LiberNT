@@ -778,8 +778,8 @@ VidInitialize(
 
     if (BootFontInitialize(&BootVidFont, LogicalWidth, LogicalHeight))
     {
-        VidpCharacterWidth = BootVidFont.CellWidth;
-        VidpCharacterHeight = BootVidFont.CellHeight;
+        VidpCharacterWidth = (ULONG)BootVidFont.CellWidth;
+        VidpCharacterHeight = (ULONG)BootVidFont.CellHeight;
     }
     else
     {
@@ -790,7 +790,7 @@ VidInitialize(
 
     if (BootFontInitializeMonochrome(&BootVidCompactFont, CompactPixelHeight))
     {
-        CompactCellHeight = BootVidCompactFont.CellHeight;
+        CompactCellHeight = (ULONG)BootVidCompactFont.CellHeight;
     }
     else
     {
@@ -840,10 +840,10 @@ VidInitialize(
     {
         /* Calculate page-aligned address and size for MmMapIoSpace() */
         FrameBuffer.HighPart = TranslatedAddress.HighPart;
-        FrameBuffer.LowPart  = ALIGN_DOWN_BY(TranslatedAddress.LowPart, PAGE_SIZE);
+        FrameBuffer.LowPart  = (ULONG)ALIGN_DOWN_BY(TranslatedAddress.LowPart, PAGE_SIZE);
         MappedSize = FrameBufferSize;
         MappedSize += (ULONG)(TranslatedAddress.QuadPart - FrameBuffer.QuadPart); // BYTE_OFFSET()
-        MappedSize = ROUND_TO_PAGES(MappedSize);
+        MappedSize = (ULONG)ROUND_TO_PAGES(MappedSize);
         /* Essentially MmMapVideoDisplay() */
         FrameBufferBase = MmMapIoSpace(FrameBuffer, MappedSize, MmWriteCombined);
         if (!FrameBufferBase)
@@ -1029,8 +1029,8 @@ VidUseCompactFont(VOID)
 
     if (BootVidCompactFont.Enabled)
     {
-        CellWidth = BootVidCompactFont.CellWidth;
-        CellHeight = BootVidCompactFont.CellHeight;
+        CellWidth = (ULONG)BootVidCompactFont.CellWidth;
+        CellHeight = (ULONG)BootVidCompactFont.CellHeight;
     }
     else
     {

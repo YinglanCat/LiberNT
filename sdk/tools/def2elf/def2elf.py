@@ -25,18 +25,20 @@ only the imports the image really leaves undefined are pulled in.
 
 The slot itself is a zeroed 8-byte entry in a section of its own,
 
-    .iat$foo.dll        allocatable, writable, 8 bytes per imported function
+    .iat$foo.dll        allocatable, writable, 8 bytes per imported symbol
 
 with one global `__imp_Foo` symbol per entry and the entries in description
-order. Both halves of the `$pc_hi20`/`$pc_lo12` pair name the same symbol and
-the two instructions therefore only work if the slot really lives at the
-address the linker gave it, so the slot has to be *defined* here: a slot left
-undefined makes ld.lld reject the pc-relative reference ("cannot be used
-against symbol ... recompile with -fPIC") and an import library that cannot be
-linked is of no use. Because a PE import address table is exactly this -- one
-contiguous array of pointer sized slots per DLL, which the loader fills in --
-sdk/tools/elf2pe only has to turn the section into an IMAGE_IMPORT_DESCRIPTOR
-and write the hint/name pairs. The linker keeps the slots of every member it
+order. A function's thunk loads it and a data import is reached by taking its
+address, so both kinds of import carry exactly this slot. Both halves of the
+`$pc_hi20`/`$pc_lo12` pair name the same symbol and the two instructions
+therefore only work if the slot really lives at the address the linker gave
+it, so the slot has to be *defined* here: a slot left undefined makes ld.lld
+reject the pc-relative reference ("cannot be used against symbol ... recompile
+with -fPIC") and an import library that cannot be linked is of no use.
+Because a PE import address table is exactly this -- one contiguous array of
+pointer sized slots per DLL, which the loader fills in -- sdk/tools/elf2pe
+only has to turn the section into an IMAGE_IMPORT_DESCRIPTOR and write the
+hint/name pairs. The linker keeps the slots of every member it
 pulled in one section, so the array stays contiguous however few of them an
 image uses.
 
@@ -56,29 +58,38 @@ sdk/tools/elf2pe reads that section to build the import directory.
 Accepted from the description:
 
     LIBRARY name / NAME name      names the DLL in the .libimports record,
-                                  so a description with functions needs it
+                                  so a description with imports needs it
     name                          a function import
     name=target / name==target    imported under the left-hand name, like
                                   llvm-dlltool does; the target half only says
                                   where the DLL's own export table points
     name @N NONAME                kept by the description for the PE writer
     name PRIVATE / name SINGLE    same
-    name DATA / name CONSTANT     rejected, see below
+    name DATA / name CONSTANT     a data import: the slot only, no thunk (below)
     ; comment and "quoted name"   handled
 
-A DATA or CONSTANT import has no thunk, and cannot be given a slot either:
-the loader would put the address of the imported object in it, which is only
-what a `dllimport` consumer wants. clang reports `'dllimport' attribute is not
-supported` for loongarch64-unknown-elf, so a consumer here names the variable
-itself, and one ELF symbol cannot be both the variable and the slot that points
-at it: the slot would resolve, then be read as if its address were the
-variable. Both are reported and skipped instead of being linked into a pointer
-whose meaning the caller cannot use. Anything importing data on this target
-needs an explicit `__imp_`-style pointer that neither the headers nor the
-compiler synthesise.
+A DATA or CONSTANT import has no thunk: the loader writes the address of the
+DLL's object into the slot, and the consumer loads that pointer and
+dereferences it. The member therefore defines only `__imp_Foo`, with an empty
+.text. Defining `Foo` as well would be wrong -- one ELF symbol cannot be both
+the object and the slot that points at it, so a consumer that named `Foo`
+would read the slot's address as if it were the variable -- and the
+description cannot say which of the two a caller meant. The variable name is
+left undefined on purpose: a caller that forgets `__imp_` gets a link error
+naming the symbol instead of a plausible pointer with the wrong meaning.
+
+This is the contract an MSVC import library has, where data access needs
+`dllimport`, and it is the only one this target can express: clang reports
+`'dllimport' attribute is not supported` for loongarch64-unknown-elf, so the
+headers spell the indirection out themselves -- sdk/include/xdk/haltypes.h
+renames `HalDispatchTable` to `__imp_HalDispatchTable` with
+`#pragma redefine_extname`. The earlier version of this tool skipped data
+imports because it assumed the caller named the variable itself; that left
+every data import through such an alias undefined, which is what
+sdk/tools/elf2pe's import directory never saw.
 
 `NAME`/`LIBRARY` is what the `.libimports` record names, so a description that
-describes functions without it is rejected: without it the PE writer would have
+describes imports without it is rejected: without it the PE writer would have
 to guess which DLL a slot belongs to.
 
 The instruction words and the relocation types are the ones clang produces for
@@ -124,6 +135,7 @@ R_LARCH_PCALA_LO12 = 72
 SLOT_SIZE = 8
 IMPORT_SECTION_PREFIX = '.iat$'
 IMPORT_METADATA_SECTION = '.libimports'
+IMPORT_SYMBOL_PREFIX = '__imp_'
 
 # Section indices inside the object build_object writes.
 TEXT_SECTION = 1
@@ -214,10 +226,9 @@ def parse_export(tokens, number):
 
 
 def parse_def(text):
-    """Return (library name, [function Export], [data export name])."""
+    """Return (library name, [Export]) in description order."""
     library = None
-    exports = []
-    data = []
+    entries = []
     in_exports = False
 
     for number, line in enumerate(text.splitlines(), 1):
@@ -244,30 +255,27 @@ def parse_def(text):
         if keyword == 'exports':
             continue
         try:
-            export = parse_export(tokens, len(exports) + len(data))
+            entries.append(parse_export(tokens, len(entries)))
         except DefError as error:
             raise DefError(f'line {number}: {error}') from None
-        if export.is_data:
-            data.append(export.name)
-        else:
-            exports.append(export)
 
-    return library, exports, data
+    return library, entries
 
 
-def build_object(library, exports):
-    """Return the ET_REL object: one thunk per import plus its IAT slot.
+def build_object(library, export):
+    """Return the ET_REL object for one import: its slot and, for a function,
+    the thunk that reaches it.
 
     Section index order is fixed because the symbol table names sections by
     index: .text(1) .rela.text(2) .symtab(3) .strtab(4) .shstrtab(5)
     .iat$<library>(6) .libimports(7). The string table section stays 5 so the
-    ELF header keeps pointing at it.
+    ELF header keeps pointing at it. A data import leaves .text empty: nothing
+    calls the DLL through a thunk for it, the consumer loads the slot itself.
     """
     text = bytearray()
     symtab = bytearray(struct.pack('<IBBHQQ', 0, 0, 0, SHN_UNDEF, 0, 0))
     strtab = bytearray(b'\0')
     rela = bytearray()
-    iat = bytearray()
     metadata = bytearray(library.encode() + b'\0')
     interned = {}
 
@@ -277,29 +285,31 @@ def build_object(library, exports):
             strtab.extend(name.encode() + b'\0')
         return interned[name]
 
-    for index, export in enumerate(exports):
-        offset = len(text)
+    symbol_count = 1  # the null entry
+    if not export.is_data:
         text.extend(struct.pack('<III', *THUNK_WORDS))
         symtab.extend(struct.pack('<IBBHQQ', intern(export.name),
-                                  (STB_GLOBAL << 4) | STT_FUNC, 0, 1, offset,
+                                  (STB_GLOBAL << 4) | STT_FUNC, 0, TEXT_SECTION, 0,
                                   THUNK_SIZE))
-        # The slot is defined here, in the image, so that the pc-relative
-        # thunk resolves at link time; the PE writer turns the section into
-        # an import address table and the loader fills the slots in. It has
-        # to be hidden: a preemptible definition would make the linker reject
-        # R_LARCH_PCALA_LO12 in a shared link.
-        slot = index * SLOT_SIZE
-        iat.extend(bytes(SLOT_SIZE))
-        symtab.extend(struct.pack('<IBBHQQ', intern('__imp_' + export.name),
-                                  (STB_GLOBAL << 4) | STT_OBJECT, STV_HIDDEN,
-                                  IAT_SECTION, slot, SLOT_SIZE))
-        imp_index = 2 + 2 * index
-        rela.extend(struct.pack('<QQq', offset,
-                                (imp_index << 32) | R_LARCH_PCALA_HI20, 0))
-        rela.extend(struct.pack('<QQq', offset + 4,
-                                (imp_index << 32) | R_LARCH_PCALA_LO12, 0))
-        metadata.extend(export.name.encode() + b'\0')
+        symbol_count += 1
+        # The thunk loads the address of the slot, which is the symbol after
+        # its own.
+        slot_index = symbol_count
+        rela.extend(struct.pack('<QQq', 0,
+                                (slot_index << 32) | R_LARCH_PCALA_HI20, 0))
+        rela.extend(struct.pack('<QQq', 4,
+                                (slot_index << 32) | R_LARCH_PCALA_LO12, 0))
 
+    # The slot is defined here, in the image, so that the pc-relative thunk
+    # resolves at link time and a data consumer has an address to load from;
+    # the PE writer turns the section into an import address table and the
+    # loader fills the slots in. It has to be hidden: a preemptible definition
+    # would make the linker reject R_LARCH_PCALA_LO12 in a shared link.
+    symtab.extend(struct.pack('<IBBHQQ', intern(IMPORT_SYMBOL_PREFIX + export.name),
+                              (STB_GLOBAL << 4) | STT_OBJECT, STV_HIDDEN,
+                              IAT_SECTION, 0, SLOT_SIZE))
+    iat = bytes(SLOT_SIZE)
+    metadata.extend(export.name.encode() + b'\0')
     # An empty name ends the record, so that several objects (one per
     # description) can be concatenated by the linker and still be told apart.
     metadata.extend(b'\0')
@@ -398,26 +408,23 @@ def main(argv):
 
     try:
         with open(options.description, 'r', encoding='utf-8') as source:
-            library, exports, data = parse_def(source.read())
-        if data:
-            print(f'def2elf: {options.description}: skipped {len(data)} data '
-                  f'imports ({", ".join(data[:4])}{", ..." if len(data) > 4 else ""}): '
-                  f'this target has no dllimport, so a caller names the variable '
-                  f'itself and a pointer slot cannot stand in for it',
-                  file=sys.stderr)
-        if exports and not library:
+            library, entries = parse_def(source.read())
+        if entries and not library:
             raise DefError(f'{options.description}: the description has no NAME '
                            f'or LIBRARY directive, so the import address table '
                            f'slots it describes cannot be attributed to a DLL')
         members = [(member_name(index, export.name),
-                    build_object(library or '', [export]))
-                   for index, export in enumerate(exports)]
+                    build_object(library or '', export))
+                   for index, export in enumerate(entries)]
         archive(options.ar, options.output, members)
     except (DefError, OSError) as error:
         print(f'def2elf: {error}', file=sys.stderr)
         return 1
 
-    print(f'{options.output}: {len(exports)} thunks from {library or "unnamed"}')
+    thunks = sum(1 for export in entries if not export.is_data)
+    slots = len(entries) - thunks
+    print(f'{options.output}: {thunks} thunks and {slots} data slots '
+          f'from {library or "unnamed"}')
     return 0
 
 

@@ -12,7 +12,7 @@
 int
 BootFontInitializeUi(
     _Inout_ PBOOT_FONT_RENDERER Renderer,
-    _In_ unsigned long PixelHeight)
+    _In_ ULONG PixelHeight)
 {
     return BootFontInitializeFace(Renderer, bootfont_ui_data, bootfont_ui_data_SIZE, PixelHeight);
 }

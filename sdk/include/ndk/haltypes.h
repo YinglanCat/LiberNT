@@ -2061,7 +2061,13 @@ typedef struct _BUS_HANDLER
 //
 // Kernel Exports
 //
+#if defined(_LOONGARCH64_) && !defined(_NTSYSTEM_) && !defined(_NTHAL_)
+/* The ELF import slot holds the address of the imported table. */
+extern PVOID __imp_HalPrivateDispatchTable;
+#define HalPrivateDispatchTable (*(HAL_PRIVATE_DISPATCH *)(void *)__imp_HalPrivateDispatchTable)
+#else
 extern NTSYSAPI HAL_PRIVATE_DISPATCH HalPrivateDispatchTable;
+#endif
 #define HALPRIVATEDISPATCH (&HalPrivateDispatchTable)
 
 //

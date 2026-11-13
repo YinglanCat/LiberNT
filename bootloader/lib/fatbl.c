@@ -21,6 +21,10 @@
  * Mount state is deliberately shared with lib/fs.c: NtfsBlUnmount() does not
  * unmount the volume, because fs.c caches its own "mounted" flag and a later
  * FsReadFileA() would then run against a released FATFS object.
+ *
+ * Provenance: the interface mirrors bootloader/lib/ntfsenv.cpp's NtfsBl*
+ * contract; only the FatFs API is used, from sdk/lib/3rdparty/fatfs; no code
+ * copied.
  */
 
 #include <bl.h>
