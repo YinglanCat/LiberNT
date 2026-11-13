@@ -20,6 +20,9 @@
  *
  * TODO: the UART input clock for the 7A1000 bridge is not in the local
  * manual; add the divisor programming when a source for it exists.
+ *
+ * Provenance: no port source; UART base and 16550 register facts only from
+ * QEMU include/hw/loongarch/virt.h and 7A1000 chapter 9.1; no code copied.
  */
 
 #include <ntifs.h>

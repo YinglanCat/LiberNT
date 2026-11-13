@@ -15,6 +15,10 @@
  * ntos/include/internal/loongarch64/ke.h. The HAL is a separate image and
  * must not include kernel-private headers, so the numbers are repeated here
  * under HALP_LA64_* names. Both sides cite the same manual tables.
+ *
+ * Provenance: structural port of hal/halriscv64/halp.h; register and board
+ * facts only from drivers/irqchip/irq-loongson-*.c, loongson_ipi_common.h,
+ * the 7A1000 manual and QEMU's models; no code copied.
  */
 
 #pragma once
@@ -326,6 +330,11 @@ BOOLEAN HalpLa64GetPciResource(_Out_ PCM_PARTIAL_RESOURCE_DESCRIPTOR Resource);
 BOOLEAN NTAPI HalpLa64GetPciBusRange(_Out_ PULONG FirstBus, _Out_ PULONG LastBus);
 BOOLEAN HalpLa64PciDmaCoherent(VOID);
 BOOLEAN HalpLa64PciHostPresent(VOID);
+ULONG NTAPI HalpKdReadPciConfig(_In_ ULONG BusNumber,
+                                _In_ ULONG SlotNumber,
+                                _Out_ PVOID Buffer,
+                                _In_ ULONG Offset,
+                                _In_ ULONG Length);
 
 VOID HalpLa64InitializeDma(_In_ struct _LOADER_PARAMETER_BLOCK *LoaderBlock);
 PDMA_ADAPTER HalpLa64CreateDmaAdapter(_In_ PDEVICE_DESCRIPTION Description,

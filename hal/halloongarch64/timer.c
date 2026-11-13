@@ -9,6 +9,9 @@
  * which platform.c turns into HalpLa64TimerFrequency. The counter is not
  * writable and is consistent on every core, so it needs no per-CPU offset and
  * no calibration against another source.
+ *
+ * Provenance: structural port of hal/halriscv64/timer.c; RDTIME/CPUCFG facts
+ * only from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntifs.h>

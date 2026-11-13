@@ -14,6 +14,9 @@
  * platform table and the INTA..INTD routing is the board's fixed wiring
  * (virt.c virt_devices_init: gpex IRQ n -> PCH-PIC input 16+n). PCIe MSI is
  * delivered through the PCH-MSI window, which raises EIOINTC sources 32..255.
+ *
+ * Provenance: structural port of hal/halriscv64/pci.c; window and INTx facts
+ * only from QEMU hw/loongarch/virt.c; no code copied.
  */
 
 #include <ntifs.h>

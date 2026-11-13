@@ -9,6 +9,9 @@
  * itself, so the handler does not reprogram a deadline on every tick; it only
  * clears the pending TI through TICLR.TI [V1-7.6.5], which is the only way to
  * drop the level-triggered line.
+ *
+ * Provenance: structural port of hal/halriscv64/clock.c; timer/CSR facts only
+ * from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntifs.h>
@@ -46,10 +49,11 @@ static
 VOID
 HalpLa64ClearTimerInterrupt(VOID)
 {
+    ULONG Tmp = (ULONG)HALP_LA64_TICLR_CLR;
+
     __asm__ __volatile__("csrwr %0, %1"
-                         :
-                         : "r"((ULONG)HALP_LA64_TICLR_CLR),
-                           "i"(HALP_LA64_CSR_TICLR)
+                         : "+r"(Tmp)
+                         : "i"(HALP_LA64_CSR_TICLR)
                          : "memory");
 }
 
@@ -64,8 +68,8 @@ HalpLa64ProgramTimer(
      * the two low zero bits the field does not store, so a 4-aligned period
      * written here is the countdown the timer uses. */
     __asm__ __volatile__("csrwr %0, %1"
-                         :
-                         : "r"(Value), "i"(HALP_LA64_CSR_TCFG)
+                         : "+r"(Value)
+                         : "i"(HALP_LA64_CSR_TCFG)
                          : "memory");
 }
 
@@ -93,10 +97,14 @@ HalpLa64SuspendClockTick(VOID)
     Clock->Suspended = TRUE;
     Clock->SuspendedAt = HalpLa64ReadTime();
     HalpLa64ClearTimerInterrupt();
+    {
+    ULONG Tmp;
+    Tmp = 0;
     __asm__ __volatile__("csrwr %0, %1"
-                         :
-                         : "r"((ULONG)0), "i"(HALP_LA64_CSR_TCFG)
+                         : "+r"(Tmp)
+                         : "i"(HALP_LA64_CSR_TCFG)
                          : "memory");
+    }
 }
 
 ULONG

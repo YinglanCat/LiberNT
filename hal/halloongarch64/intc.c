@@ -27,6 +27,10 @@
  *   256..287  LIOINTC source, when that controller exists
  * The 64-based ACPI GSI numbering Linux uses does not exist here because there
  * is no ACPI table to define it.
+ *
+ * Provenance: no port source (the HAL's own layout); EIOINTC/PCH-PIC/PCH-MSI/
+ * LIOINTC register facts only from drivers/irqchip/irq-loongson-*.c, the
+ * 7A1000 manual and QEMU's models; no code copied.
  */
 
 #include <ntifs.h>

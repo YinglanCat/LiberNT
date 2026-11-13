@@ -18,6 +18,9 @@
  *
  * All maintenance here addresses memory through the DMW1 cached window of the
  * page's physical address, so one call covers every mapping of the page.
+ *
+ * Provenance: structural port of hal/halriscv64/cache.c; CACOP/CPUCFG facts
+ * only from the Vol1 and 3A5000 manuals; no code copied.
  */
 
 #include <ntifs.h>

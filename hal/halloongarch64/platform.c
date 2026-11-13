@@ -26,6 +26,9 @@
  * and the interrupt wiring of the same file: UART n is PCH-PIC input 2+n,
  * the RTC is input 6, and PCIe INTA..INTD are inputs 16..19. The PCH-PIC
  * outputs 0..31 feed EIOINTC inputs 0..31, and PCH-MSI supplies 32..255.
+ *
+ * Provenance: no port source; board addresses only from QEMU
+ * hw/loongarch/virt.c and virt.h; no code copied.
  */
 
 #include <ntifs.h>

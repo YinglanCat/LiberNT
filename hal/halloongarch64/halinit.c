@@ -9,6 +9,9 @@
  * PASSIVE_LEVEL. The split is the one hal/halriscv64 uses: phase 0 adopts and
  * validates everything the loader handed over, phase 1 touches hardware that
  * needs a mapped MMIO window and then unmasks the line interrupts.
+ *
+ * Provenance: structural port of hal/halriscv64/halinit.c; csrrd/csrwr
+ * encoding facts only from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntifs.h>

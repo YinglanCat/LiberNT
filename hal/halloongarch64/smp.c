@@ -12,6 +12,9 @@
  * hardware, so HalStartNextProcessor reports failure and the kernel stays on
  * the boot core. The IPI path below is complete and is what a future SMP port
  * needs; only the "first instruction of a new core" is missing.
+ *
+ * Provenance: no port source; the Loongson boot mailbox is named only, never
+ * implemented here and never copied.
  */
 
 #include <ntifs.h>

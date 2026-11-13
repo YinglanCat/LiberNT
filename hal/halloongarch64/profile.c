@@ -11,6 +11,9 @@
  * nothing in the kernel-only profile consumes them. A caller asking for a PMU
  * source is told it is unsupported rather than handed a counter that never
  * overflows.
+ *
+ * Provenance: no port source; the PMU facts cited here come only from the
+ * Vol1 manual and none of them is implemented; no code copied.
  */
 
 #include <ntifs.h>

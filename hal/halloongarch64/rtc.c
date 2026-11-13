@@ -18,6 +18,9 @@
  * QEMU's model (hw/rtc/ls7a_rtc.c) implements TOYREAD0 as "apply the current
  * seconds field", so a reader can observe a torn value across a second
  * boundary; the read loop below re-reads until two snapshots agree.
+ *
+ * Provenance: structural port of hal/halriscv64/rtc.c; TOY register facts
+ * only from the 7A1000 manual and QEMU hw/rtc/ls7a_rtc.c; no code copied.
  */
 
 #include <ntifs.h>

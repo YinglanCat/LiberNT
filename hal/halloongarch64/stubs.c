@@ -8,6 +8,9 @@
  * result (BOOLEAN/FALSE, STATUS_NOT_SUPPORTED) or implements a service that
  * needs no device. Nothing fakes success: a caller that needs the service sees
  * the failure.
+ *
+ * Provenance: structural port of hal/halriscv64/stubs.c; CPUCFG3 facts only
+ * from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntifs.h>

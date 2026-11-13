@@ -14,6 +14,9 @@
  * CPUCFG3.CCDMA [V1-4.2.6.5] says whether the hardware maintains it. When it
  * does not, every hand-off and completion runs CACOP through the direct map
  * (cache.c), including for bounce-buffer copies.
+ *
+ * Provenance: structural port of hal/halriscv64/dma.c; DMW/CCDMA facts only
+ * from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntifs.h>
