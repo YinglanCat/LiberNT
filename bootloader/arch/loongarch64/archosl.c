@@ -76,6 +76,16 @@ OslArchPlaceRamdisk(VOID)
 }
 
 VOID
+OslArchReserveFirmwareMemory(
+    _In_ PLOADER_PARAMETER_BLOCK LoaderBlock)
+{
+    /* The UEFI memory map already reports every firmware region, and there is
+     * no device tree blob to keep alive, so nothing has to be taken back from
+     * reuse here; the kernel's free pages cannot overwrite it. */
+    UNREFERENCED_PARAMETER(LoaderBlock);
+}
+
+VOID
 OslArchSwitchStack(VOID)
 {
     _changestack();
