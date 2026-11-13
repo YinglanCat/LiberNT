@@ -3,6 +3,9 @@
  * LICENSE:     GPL-3.0-or-later (https://spdx.org/licenses/GPL-3.0-or-later)
  * PURPOSE:     LoongArch64 loader handoff definitions
  * COPYRIGHT:   Copyright 2026 Zhou Ji Yang <yinglanxing@gmail.com>
+ *
+ * Provenance: no port source; the PWCL/PWCH/DMW/STLBPS values only from the
+ * LoongArch Vol1 manual (Tables 42-44 and sec. 7.5.18); no code copied.
  */
 
 
@@ -30,8 +33,6 @@
 #define LOONGARCH64_CRMD_DA             0x0000000000000008ULL
 #define LOONGARCH64_CRMD_BOOT           0x00000000000000B0ULL
 #define LOONGARCH64_EUEN_BOOT           0x0000000000000001ULL
-#define LOONGARCH64_TICLR_CLEAR         0x0000000000000001ULL
-#define LOONGARCH64_TCFG_BOOT           0x0000000000000000ULL
 
 #define LOONGARCH64_CSR_CRMD            0x0
 #define LOONGARCH64_CSR_CPUID           0x20

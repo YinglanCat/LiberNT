@@ -3,6 +3,10 @@
  * LICENSE:     GPL-3.0-or-later (https://spdx.org/licenses/GPL-3.0-or-later)
  * PURPOSE:     LoongArch64 NT loader handoff and four-level bootstrap tables
  * COPYRIGHT:   Copyright 2026 Zhou Ji Yang <yinglanxing@gmail.com>
+ *
+ * Provenance: the arch hooks mirror bootloader/arch/riscv64/winldr.c; the
+ * PWCL/PWCH/DMW/STLBPS values only from the Vol1 manual (sec. 7.5.8/7.5.9/
+ * 7.5.10/7.5.18); no code copied.
  */
 
 
@@ -561,6 +565,7 @@ LoongArch64JumpToKernel(
     _In_ PLOADER_PARAMETER_BLOCK LoaderBlock)
 {
     ULONG_PTR Root = (ULONG_PTR)La64LoaderState.RootTable;
+    PLOADER_PARAMETER_BLOCK Physical = VaToPa(LoaderBlock);
 
     if (!La64LoaderState.TablesFinalized ||
         !La64IsDirectMappedAddress((ULONG_PTR)&La64HandoffValues) ||
@@ -582,7 +587,7 @@ LoongArch64JumpToKernel(
     La64HandoffValues.Eentry = (ULONG64)(ULONG_PTR)PaToVa(La64LoaderState.ExceptionStub);
     La64HandoffValues.Tlbrentry = (ULONG64)(ULONG_PTR)La64LoaderState.ExceptionStub;
     La64HandoffValues.EntryPoint = (ULONG64)(ULONG_PTR)EntryPoint;
-    La64HandoffValues.KernelStack = (ULONG64)LoaderBlock->KernelStack;
+    La64HandoffValues.KernelStack = (ULONG64)Physical->KernelStack;
     La64HandoffValues.LoaderBlock = (ULONG64)(ULONG_PTR)LoaderBlock;
 
     __asm__ __volatile__(
@@ -634,28 +639,11 @@ LoongArch64JumpToKernel(
         "csrrd     $t2, 0x88\n\t"
         "csrwr     $r0, 0x1\n\t"
         "csrrd     $t2, 0x1\n\t"
-        "ld.d      $t1, $t0, 64\n\t"
-        "csrwr     $t1, 0x6\n\t"
-        "csrrd     $t2, 0x6\n\t"
-        "csrwr     $r0, 0x4\n\t"
-        "csrrd     $t2, 0x4\n\t"
         "li.d      $t1, %c4\n\t"
         "csrwr     $t1, 0x2\n\t"
         "csrrd     $t2, 0x2\n\t"
-        "csrwr     $r0, 0x3\n\t"
-        "csrrd     $t2, 0x3\n\t"
-        "csrwr     $r0, 0x1f\n\t"
-        "csrrd     $t2, 0x1f\n\t"
-        "csrwr     $r0, 0x60\n\t"
-        "csrrd     $t2, 0x60\n\t"
-        "li.d      $t1, %c5\n\t"
-        "csrwr     $t1, 0x44\n\t"
-        "csrrd     $t2, 0x44\n\t"
-        "li.d      $t1, %c6\n\t"
-        "csrwr     $t1, 0x41\n\t"
-        "csrrd     $t2, 0x41\n\t"
         "dbar      0\n\t"
-        "li.d      $t1, %c7\n\t"
+        "li.d      $t1, %c5\n\t"
         "csrwr     $t1, 0x0\n\t"
         "csrrd     $t2, 0x0\n\t"
         "ld.d      $a0, $t0, 80\n\t"
@@ -697,8 +685,6 @@ LoongArch64JumpToKernel(
           "i"(LOONGARCH64_PWCH_4LEVEL_4K),
           "i"(LOONGARCH64_STLBPS_4K),
           "i"(LOONGARCH64_EUEN_BOOT),
-          "i"(LOONGARCH64_TICLR_CLEAR),
-          "i"(LOONGARCH64_TCFG_BOOT),
           "i"(LOONGARCH64_CRMD_BOOT)
         : "memory");
 
