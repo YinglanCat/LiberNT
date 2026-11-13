@@ -5,6 +5,9 @@
  *
  * SPDX-FileCopyrightText: 2026 Ahmed ARIF
  * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * Provenance: structural port of ntos/mm/arch/riscv64/descriptor.c; TLBELO
+ * and PME facts only from the Vol1 manual and Loongson's kernel; no code copied.
  */
 
 #include <mm/include/nvsenv.h>

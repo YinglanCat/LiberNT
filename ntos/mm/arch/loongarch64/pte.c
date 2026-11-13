@@ -5,6 +5,9 @@
  *
  * SPDX-FileCopyrightText: 2026 Ahmed ARIF
  * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * Provenance: structural port of ntos/mm/arch/riscv64/pte.c; leaf facts only
+ * from the Vol1 manual and Loongson's pgtable-bits.h; no code copied.
  */
 
 #include <mm/include/mienv.h>

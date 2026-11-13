@@ -5,6 +5,10 @@
  *
  * SPDX-FileCopyrightText: 2026 Ahmed ARIF
  * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * Provenance: structural port of ntos/mm/arch/riscv64/archdef.h; PWCL/PWCH
+ * and VA facts only from the Vol1 manual and Linux's loongarch geometry; no
+ * code copied.
  */
 
 #pragma once

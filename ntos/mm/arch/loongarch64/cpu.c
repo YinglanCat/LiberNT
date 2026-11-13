@@ -5,6 +5,9 @@
  *
  * SPDX-FileCopyrightText: 2026 Ahmed ARIF
  * SPDX-License-Identifier: GPL-3.0-only
+ *
+ * Provenance: structural port of ntos/mm/arch/riscv64/cpu.c; CRMD/DMW facts
+ * only from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <mm/nt/mint.h>

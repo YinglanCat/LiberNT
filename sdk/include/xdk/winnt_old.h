@@ -1208,7 +1208,6 @@ typedef BOOLEAN (NTAPI *PSECURE_MEMORY_CACHE_CALLBACK)(_In_reads_bytes_(Range) P
 #define IO_REPARSE_TAG_MOUNT_POINT 0xA0000003
 #define IO_REPARSE_TAG_WCI 0x80000018L
 #define IO_REPARSE_TAG_SYMLINK 0xA000000CL
-#define IO_REPARSE_TAG_AF_UNIX 0x80000023L
 
 #define RTL_CRITICAL_SECTION_FLAG_NO_DEBUG_INFO    0x01000000
 #define RTL_CRITICAL_SECTION_FLAG_DYNAMIC_SPIN     0x02000000
@@ -5333,6 +5332,14 @@ FORCEINLINE struct _TEB * NtCurrentTeb(VOID)
     struct _TEB *Teb;
     __asm__("mv %0, tp" : "=r"(Teb));
     return Teb;
+}
+FORCEINLINE PVOID GetCurrentFiber(VOID)
+{
+#ifdef NONAMELESSUNION
+    return ((PNT_TIB)NtCurrentTeb())->DUMMYUNIONNAME.FiberData;
+#else
+    return ((PNT_TIB)NtCurrentTeb())->FiberData;
+#endif
 }
 #elif defined(_M_LOONGARCH64)
 FORCEINLINE struct _TEB * NtCurrentTeb(VOID)
