@@ -28,6 +28,9 @@
  * directory proves every one of them with C_ASSERT against the real
  * structures. A structure change that moves a field breaks that object, not
  * the running kernel.
+ *
+ * Provenance: no port source; psABI and Vol1 facts only, offsets taken from
+ * this tree's own structures; no code copied.
  */
 
 #pragma once

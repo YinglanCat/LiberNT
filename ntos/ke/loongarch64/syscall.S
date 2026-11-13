@@ -12,6 +12,9 @@
  * arguments and slots 8..31 in the outgoing stack-argument area at $sp + 0,
  * which is where a callee's incoming stack arguments start for this psABI
  * (16-byte aligned stack, first stack argument at offset 0).
+ *
+ * Provenance: structural port of ntos/ke/riscv64/syscall.S; argument-register
+ * facts only from the LoongArch psABI; no code copied.
  */
 
     .text

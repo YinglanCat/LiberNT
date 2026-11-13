@@ -11,6 +11,9 @@
  * to the doorbell registers: KiIpiSend records the request and asks the HAL
  * to ring the target cores, and the receive path in interrupt.c
  * acknowledges through the HAL before it services anything.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/ipi.c; IPI-line facts only
+ * from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntoskrnl.h>

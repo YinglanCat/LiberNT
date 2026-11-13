@@ -3,6 +3,9 @@
  * LICENSE:     GPL-3.0-or-later (https://spdx.org/licenses/GPL-3.0-or-later)
  * PURPOSE:     LoongArch64 system-service dispatch
  * COPYRIGHT:   Copyright 2026 Ahmed ARIF <arif.ing@outlook.com>
+ *
+ * Provenance: structural port of ntos/ke/riscv64/syscall.c; psABI argument
+ * facts only; the invocation convention is this tree's own; no code copied.
  */
 
 /*

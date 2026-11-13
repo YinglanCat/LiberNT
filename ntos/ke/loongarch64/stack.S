@@ -9,6 +9,9 @@
  * the psABI frame record ($fp chain) and the trap frame need relocating, and
  * KiLa64PrepareKernelStack does that; this stub moves $sp only after the C
  * helper returns, so nothing in the helper ever runs on a half-moved stack.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/stack.S; frame-record facts
+ * only from the psABI and GCC/Clang output; no code copied.
  */
 
 #include "asmoffsets.h"

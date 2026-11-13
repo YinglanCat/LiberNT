@@ -18,6 +18,9 @@
  *     reports.
  *
  * Every CSR field used here cites the manual volume and section.
+ *
+ * Provenance: no port source (the RISC-V port keeps no such private header);
+ * CSR/CPUCFG facts only from the Vol1 and 3A5000 manuals; no code copied.
  */
 
 #pragma once
@@ -153,7 +156,9 @@ VOID
 KiLa64ClearTimerInterrupt(VOID)
 {
     /* csrwr writes the value and discards the read-back, which is always 0. */
-    __asm__ __volatile__("csrwr %0, 0x44" :: "r"((ULONG_PTR)1) : "memory");
+    ULONG_PTR Tmp = 1;
+
+    __asm__ __volatile__("csrwr %0, 0x44" : "+r"(Tmp) :: "memory");
 }
 
 FORCEINLINE
@@ -198,7 +203,7 @@ VOID
 KiLa64WriteEentry(
     _In_ ULONG64 Value)
 {
-    __asm__ __volatile__("csrwr %0, 0xc" :: "r"(Value) : "memory");
+    __asm__ __volatile__("csrwr %0, 0xc" : "+r"(Value) :: "memory");
 }
 
 FORCEINLINE
@@ -216,7 +221,7 @@ VOID
 KiLa64WriteTlbRefillEntry(
     _In_ ULONG64 Value)
 {
-    __asm__ __volatile__("csrwr %0, 0x88" :: "r"(Value) : "memory");
+    __asm__ __volatile__("csrwr %0, 0x88" : "+r"(Value) :: "memory");
 }
 
 /* Fill one STLB entry ([V1-7.5.1]-[V1-7.5.3], [V1-4.2.4.4]).
@@ -238,10 +243,10 @@ KiLa64FillTlbPair(
 {
     ULONG64 TlbIdx = (ULONG64)PAGE_SHIFT << 24;   /* STLBPS.PS field is 24:29 */
 
-    __asm__ __volatile__("csrwr %0, 0x11" :: "r"(Vppn) : "memory");
-    __asm__ __volatile__("csrwr %0, 0x12" :: "r"(Lo0) : "memory");
-    __asm__ __volatile__("csrwr %0, 0x13" :: "r"(Lo1) : "memory");
-    __asm__ __volatile__("csrwr %0, 0x10" :: "r"(TlbIdx) : "memory");
+    __asm__ __volatile__("csrwr %0, 0x11" : "+r"(Vppn) :: "memory");
+    __asm__ __volatile__("csrwr %0, 0x12" : "+r"(Lo0) :: "memory");
+    __asm__ __volatile__("csrwr %0, 0x13" : "+r"(Lo1) :: "memory");
+    __asm__ __volatile__("csrwr %0, 0x10" : "+r"(TlbIdx) :: "memory");
     __asm__ __volatile__("tlbfill" ::: "memory");
 }
 
@@ -334,6 +339,7 @@ extern KI_LA64_PROCESSOR KiLa64Processor;
 #define LA64_CPUCFG1_PALEN_MASK     0x000000FFu
 #define LA64_CPUCFG1_VALEN_SHIFT    12
 #define LA64_CPUCFG1_VALEN_MASK     0x000000FFu
+#define LA64_CPUCFG1_VALEN_48       0x0000002Fu
 
 /* CPUCFG2 features, 3A5000 manual Table 54 (word 2). */
 #define LA64_CPUCFG2_FP             0x00000001u

@@ -17,6 +17,9 @@
  * the only mechanism this tree has for carrying an address to another core:
  * Prcb->RequestSummary is a bit set, not a payload. Flushing every core is
  * also always allowed to flush more than the caller asked for.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/tlb.c; INVTLB opcode facts
+ * only from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntoskrnl.h>

@@ -9,6 +9,9 @@
  * whole of this file is the proof that the delivery matches the live machine
  * before any of it is published (handoff contract section 3.6), and then the
  * portable kernel bring-up that follows.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/kiinit.c; CSR facts only
+ * from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntoskrnl.h>
@@ -210,6 +213,12 @@ KiLa64ValidateLoaderBlock(
         return KiLa64StartupInvalidAddressLayout;
     }
 
+    /* The page walker bounds table frames by the RAM the loader mapped; trap
+     * and validation paths run before the memory manager learns the real
+     * limit, so the loader's figure is published here. */
+    MiLa64InitializePageTableAccess(
+        (PFN_NUMBER)(LaBlock->HighestMappedPhysicalAddress >> PAGE_SHIFT));
+
     /* Section 3.6 item 3: the payload's address space must be the live one.
      * A mismatch means the loader and the kernel disagree about which
      * translations exist, which nothing later can repair. */
@@ -220,13 +229,13 @@ KiLa64ValidateLoaderBlock(
             (KiLa64ReadConfigCsr(0x1c) != (ULONG)LaBlock->Pwcl) ||
             (KiLa64ReadConfigCsr(0x1d) != (ULONG)LaBlock->Pwch) ||
             (KiLa64ReadConfigCsr(0x1e) != LaBlock->StlbPs) ||
-            (KiLa64ReadConfigCsr(0x18) != LaBlock->Asid))
+            ((KiLa64ReadConfigCsr(0x18) & LA64_ASID_MASK) != (ULONG)LaBlock->Asid))
         {
             return KiLa64StartupInvalidAddressLayout;
         }
         for (Index = 0; Index < RTL_NUMBER_OF(LaBlock->Dmw); Index++)
         {
-            if ((ULONG)KiLa64ReadAddressCsr((KI_LA64_CSR)(KiLa64CsrDmw0 + Index)) != LaBlock->Dmw[Index])
+            if (KiLa64ReadAddressCsr((KI_LA64_CSR)(KiLa64CsrDmw0 + Index)) != LaBlock->Dmw[Index])
                 return KiLa64StartupInvalidAddressLayout;
         }
     }
@@ -370,15 +379,15 @@ KiLa64SystemStartup(
 
     KiLa64StartupPhase = KiLa64StartupEntered;
     KiLa64StartupFailure = KiLa64StartupNoFailure;
+    KiLa64IdentifyProcessor(LoaderBlock);
     Failure = KiLa64ValidateLoaderBlock(LoaderBlock);
     if (Failure != KiLa64StartupNoFailure)
         KiLa64StartupStop(Failure);
 
     /* Bring up the loader-described console first so every later failure can
-     * print, then identify the core. A missing console is not fatal. */
+     * print. A missing console is not fatal. */
     LaBlock = &LoaderBlock->u.LoongArch64;
     KiLa64ConsoleInitialize(LoaderBlock);
-    KiLa64IdentifyProcessor(LoaderBlock);
     if (!KiLa64Processor.Valid)
         KiLa64StartupStop(KiLa64StartupInvalidCpuConfig);
 

@@ -112,14 +112,19 @@ add_executable(ntoskrnl
     ntoskrnl.rc
     ${CMAKE_CURRENT_BINARY_DIR}/ntoskrnl.def)
 set_module_type(ntoskrnl kernel)
-target_compile_definitions(ntoskrnl PRIVATE CONFIG_SMP)
-
-# The kernel debugger prints the reports, so it stays uninstrumented.
-if(ENABLE_KERNEL_UBSAN)
-    set(_ntoskrnl_debugger_source ${NTOSKRNL_SOURCE})
-    list(FILTER _ntoskrnl_debugger_source INCLUDE REGEX "/ntos/kd")
-    set_source_files_properties(${_ntoskrnl_debugger_source} PROPERTIES COMPILE_OPTIONS "-fno-sanitize=undefined")
+if(ARCH STREQUAL "loongarch64")
+    # ntoskrnl.spec exports the whole Windows kernel catalog; the LoongArch64
+    # image does not define all of it yet. sdk/cmake/loongarch64_link.py hands
+    # this list to elf2pe when it builds the export directory, and every
+    # unresolved export the list does not name fails the link.
+    target_link_options(ntoskrnl PRIVATE
+        "-Wl,--export-allowlist,${REACTOS_SOURCE_DIR}/ntos/ntoskrnl.loongarch64-export-allowlist")
+    # The list is a link input, not a source, so name it a dependency or an
+    # edit to it would not relink the image.
+    set_property(TARGET ntoskrnl APPEND PROPERTY LINK_DEPENDS
+        "${REACTOS_SOURCE_DIR}/ntos/ntoskrnl.loongarch64-export-allowlist")
 endif()
+target_compile_definitions(ntoskrnl PRIVATE CONFIG_SMP)
 
 if(ARCH STREQUAL "arm64")
     target_link_libraries(ntoskrnl rtl_kernel_context)

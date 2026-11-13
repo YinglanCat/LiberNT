@@ -23,6 +23,9 @@
  *   PMCOV       PROFILE_LEVEL    no consumer on this port
  *   TI          CLOCK_LEVEL      stable timer, cleared by the HAL with TICLR
  *   IPI         IPI_LEVEL        interprocessor requests, ESTAT.IS[12]
+ *
+ * Provenance: structural port of ntos/ke/riscv64/interrupt.c; ESTAT/ECFG
+ * facts only from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntoskrnl.h>

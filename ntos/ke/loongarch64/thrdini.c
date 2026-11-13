@@ -169,8 +169,9 @@ KiSwapProcess(
     ASSERT(NewProcess->DirectoryTableBase != 0);
 
     Root = NewProcess->DirectoryTableBase;
-    __asm__ __volatile__("csrwr %0, 0x19" :: "r"(Root) : "memory");
-    __asm__ __volatile__("csrwr %0, 0x1a" :: "r"(Root) : "memory");
+    __asm__ __volatile__("csrwr %0, 0x19" : "+r"(Root) :: "memory");
+    Root = NewProcess->DirectoryTableBase;
+    __asm__ __volatile__("csrwr %0, 0x1a" : "+r"(Root) :: "memory");
     /* Every entry of the outgoing address space is stale now. */
     KiLa64FlushCurrentAsidTlb();
     KiLa64MemoryBarrier();

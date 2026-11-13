@@ -3,6 +3,9 @@
  * LICENSE:     GPL-3.0-or-later (https://spdx.org/licenses/GPL-3.0-or-later)
  * COPYRIGHT:   Copyright 2026 Ahmed ARIF
  * PURPOSE:     LoongArch64 processor diagnostic state
+ *
+ * Provenance: structural port of ntos/ke/riscv64/cpu.c; CSR and psABI facts
+ * only from the LoongArch Vol1 manual and the psABI; no code copied.
  */
 
 #include <ntoskrnl.h>
@@ -21,7 +24,7 @@
     FORCEINLINE VOID KiLa64Write##Name(_In_ ULONG64 Value)           \
     {                                                                \
         __asm__ __volatile__("csrwr %0, " #Address                   \
-                             :: "r"(Value) : "memory");              \
+                             : "+r"(Value) :: "memory");             \
     }
 
 #define KI_LA64_DEFINE_CSR32( Name, Address )                        \
@@ -33,8 +36,9 @@
     }                                                                \
     FORCEINLINE VOID KiLa64Write##Name(_In_ ULONG Value)             \
     {                                                                \
+        ULONG64 Tmp = Value;                                         \
         __asm__ __volatile__("csrwr %0, " #Address                   \
-                             :: "r"((ULONG_PTR)Value) : "memory");   \
+                             : "+r"(Tmp) :: "memory");               \
     }
 
 KI_LA64_DEFINE_CSR64(Era, 0x6)
@@ -56,7 +60,9 @@ KI_LA64_DEFINE_CSR32(Pwch, 0x1d)
 FORCEINLINE VOID
 KiLa64WriteEuenValue(_In_ ULONG Value)
 {
-    __asm__ __volatile__("csrwr %0, 0x2" :: "r"((ULONG_PTR)Value) : "memory");
+    ULONG64 Tmp = Value;
+
+    __asm__ __volatile__("csrwr %0, 0x2" : "+r"(Tmp) :: "memory");
 }
 
 /* ASID is 10 bits wide ([V1-7.5.4]); the reader lives in ke.h and masks it,

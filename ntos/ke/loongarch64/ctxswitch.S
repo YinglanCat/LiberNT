@@ -18,6 +18,9 @@
  *
  * $r21 is the KPCR base. The PCR is a property of the processor, not of the
  * thread, so a switch inside one processor never writes it.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/ctxswitch.S; register-bank
+ * facts only from the LoongArch psABI; no code copied.
  */
 
 #include "asmoffsets.h"

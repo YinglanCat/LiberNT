@@ -1,0 +1,218 @@
+# Exports in ntoskrnl.spec that the LoongArch64 ntoskrnl.exe image does not
+# define today.
+#
+# sdk/tools/elf2pe/elf2pe.py builds this image's export directory from the
+# spec2def-generated ntoskrnl.def. Every EXPORTS entry must name a symbol the
+# linked ELF defines or a forwarder into another module (hal.*); an entry that
+# names neither fails the link with the complete list of such names, because an
+# export directory that quietly dropped them would promise less than the
+# catalog does. This file is the reviewed exception list: the names below are
+# left out of the export directory and each omission is printed during the
+# link, and every name that is not listed here still fails.
+#
+# Keep this list shrinking, and remove a line as soon as the symbol appears in
+# ntoskrnl.exe.elf; the link then warns that the allow-list entry is unused.
+# Of the 192 names below, 181 are defined by an archive member that nothing in
+# the kernel references, so the linker never pulls it in (it does not link
+# archives whole). The other 11 have no implementation in the link at all:
+# KxSaveFloatingPointState/KxRestoreFloatingPointState are the amd64/arm64
+# kernel implementations of KeSave/KeRestoreFloatingPointState, and
+# RtlVirtualUnwind2/RtlVirtualUnwind/RtlLookupFunctionEntry/RtlUnwind/
+# RtlUnwindEx/RtlRestoreContext/RtlGetCallersAddress/__C_specific_handler/
+# _local_unwind are the unwind and SEH implementation the LoongArch64 port has
+# not written (sdk/lib/rtl/CMakeLists.txt lists no loongarch64/unwind.c).
+#
+# One export name per line, exactly as it appears in ntoskrnl.def.
+
+IoCsqInitialize
+IoCsqInitializeEx
+IoCsqInsertIrp
+IoCsqInsertIrpEx
+IoCsqRemoveIrp
+IoCsqRemoveNextIrp
+KeRestoreFloatingPointState
+KeSaveFloatingPointState
+LsaCallAuthenticationPackage
+LsaDeregisterLogonProcess
+LsaFreeReturnBuffer
+LsaLogonUser
+LsaLookupAuthenticationPackage
+LsaRegisterLogonProcess
+PfxFindPrefix
+PfxInitialize
+PfxInsertPrefix
+PfxRemovePrefix
+RtlAreBitsClearEx
+RtlClearAllBitsEx
+RtlClearBitEx
+RtlCompareAltitudes
+RtlCompressBuffer
+RtlCompressChunks
+RtlContractHashTable
+RtlConvertLongToLargeInteger
+RtlConvertUlongToLargeInteger
+RtlCopyBitMapEx
+RtlCopyLuid
+RtlCopyLuidAndAttributesArray
+RtlCreateHashTable
+RtlCreateSystemVolumeInformationFolder
+RtlCreateUserThread
+RtlCultureNameToLCID
+RtlDecompressBuffer
+RtlDecompressChunks
+RtlDecompressFragment
+RtlDeleteElementGenericTable
+RtlDeleteHashTable
+RtlDescribeChunk
+RtlEndEnumerationHashTable
+RtlEndWeakEnumerationHashTable
+RtlEnumerateEntryHashTable
+RtlEnumerateGenericTable
+RtlEnumerateGenericTableWithoutSplaying
+RtlEqualLuid
+RtlEthernetAddressToStringA
+RtlEthernetAddressToStringW
+RtlEthernetStringToAddressA
+RtlEthernetStringToAddressW
+RtlExpandHashTable
+RtlFindClearBitsAndSetEx
+RtlFindSetBitsEx
+RtlFindUnicodePrefix
+RtlGenerate8dot3Name
+RtlGetCallersAddress
+RtlGetCompressionWorkSpaceSize
+RtlGetElementGenericTable
+RtlGetNextEntryHashTable
+RtlGetProductInfo
+RtlGetSetBootStatusData
+RtlInitEnumerationHashTable
+RtlInitUTF8String
+RtlInitWeakEnumerationHashTable
+RtlInitializeBitMapEx
+RtlInitializeGenericTable
+RtlInitializeUnicodePrefix
+RtlInsertElementGenericTable
+RtlInsertElementGenericTableFull
+RtlInsertEntryHashTable
+RtlInsertUnicodePrefix
+RtlIntersectBitMapsEx
+RtlIpv4AddressToStringA
+RtlIpv4AddressToStringExA
+RtlIpv4AddressToStringExW
+RtlIpv4AddressToStringW
+RtlIpv4StringToAddressA
+RtlIpv4StringToAddressExA
+RtlIpv4StringToAddressExW
+RtlIpv4StringToAddressW
+RtlIpv6AddressToStringA
+RtlIpv6AddressToStringExA
+RtlIpv6AddressToStringExW
+RtlIpv6AddressToStringW
+RtlIpv6StringToAddressA
+RtlIpv6StringToAddressExA
+RtlIpv6StringToAddressExW
+RtlIpv6StringToAddressW
+RtlIsGenericTableEmpty
+RtlIsNameLegalDOS8Dot3
+RtlLCIDToCultureName
+RtlLockBootStatusData
+RtlLookupElementGenericTable
+RtlLookupElementGenericTableFull
+RtlLookupEntryHashTable
+RtlLookupFunctionEntry
+RtlNextUnicodePrefix
+RtlNumberGenericTableElements
+RtlNumberOfSetBitsInRangeEx
+RtlRemoveEntryHashTable
+RtlRemoveUnicodePrefix
+RtlReserveChunk
+RtlRestoreContext
+RtlRunOnceBeginInitialize
+RtlRunOnceComplete
+RtlRunOnceExecuteOnce
+RtlRunOnceInitialize
+RtlSetBitEx
+RtlTestBitEx
+RtlTraceDatabaseAdd
+RtlTraceDatabaseCreate
+RtlTraceDatabaseDestroy
+RtlTraceDatabaseEnumerate
+RtlTraceDatabaseFind
+RtlTraceDatabaseLock
+RtlTraceDatabaseUnlock
+RtlTraceDatabaseValidate
+RtlUTF8StringToUnicodeString
+RtlUTF8ToUnicodeN
+RtlUnicodeToUTF8N
+RtlUnlockBootStatusData
+RtlUnwind
+RtlUnwindEx
+RtlVerifyVersionInfo
+RtlVirtualUnwind
+RtlVirtualUnwind2
+RtlWeaklyEnumerateEntryHashTable
+VerSetConditionMask
+__C_specific_handler
+_i64toa_s
+_i64tow_s
+_itoa
+_itoa_s
+_itow
+_itow_s
+_local_unwind
+_ltoa_s
+_ltow_s
+_setjmp
+_setjmpex
+_snwprintf
+_snwscanf_s
+_strlwr
+_strnset
+_strrev
+_strset
+_strupr
+_ui64toa_s
+_ui64tow_s
+_vswprintf
+_wcslwr
+_wcsnset
+_wcsrev
+_wcsupr
+_wsplitpath_s
+_wtoi
+_wtol
+atoi
+bsearch
+longjmp
+memchr
+memcpy_s
+memmove_s
+rand
+sprintf
+srand
+sscanf_s
+strcat
+strcat_s
+strcpy_s
+strncat
+strncat_s
+strncpy_s
+strspn
+strtok_s
+swscanf_s
+toupper
+towupper
+vsprintf
+wcscat
+wcscat_s
+wcscmp
+wcscpy_s
+wcscspn
+wcsncat
+wcsncat_s
+wcsncmp
+wcsncpy
+wcsncpy_s
+wcsrchr
+wcsspn
+wcstoul

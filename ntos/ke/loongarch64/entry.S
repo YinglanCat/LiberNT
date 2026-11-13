@@ -16,6 +16,9 @@
  * clearing it again idempotently with csrxchg, and hands the loader block
  * to KiLa64SystemStartup, which validates everything else against the live
  * CSRs before it publishes any kernel state.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/entry.S; CRMD facts only
+ * from the LoongArch Vol1 manual; no code copied.
  */
 
 #include "asmoffsets.h"

@@ -3,6 +3,9 @@
  * LICENSE:     GPL-3.0-or-later (https://spdx.org/licenses/GPL-3.0-or-later)
  * COPYRIGHT:   Copyright 2026 Ahmed ARIF
  * PURPOSE:     LoongArch64 processor cache topology from CPUCFG
+ *
+ * Provenance: structural port of ntos/ke/riscv64/topology.c; CPUCFG10-14
+ * facts only from the 3A5000 manual; no code copied.
  */
 
 #include <ntoskrnl.h>

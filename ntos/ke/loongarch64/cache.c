@@ -24,6 +24,9 @@
  * I-cache coherent with the D-cache in hardware ([3A5000] Table 54, bit 7).
  * That is the fast path of KeSweepICache; when it is clear the sweep falls
  * back to CACOP over the affected lines.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/cache.c; CACOP and
+ * CPUCFG11-14 facts only from the LoongArch manuals; no code copied.
  */
 
 #include <ntoskrnl.h>

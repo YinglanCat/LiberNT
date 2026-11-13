@@ -10,6 +10,9 @@
  * empty on this target; see the explanation at the top of asmoffsets.h), so
  * this object is what turns a structure change into a build failure instead
  * of a silent trap-frame corruption.
+ *
+ * Provenance: no port source; psABI and Vol1 facts only, offsets taken from
+ * this tree's own CONTEXT/KTRAP_FRAME; no code copied.
  */
 
 #include <ntoskrnl.h>

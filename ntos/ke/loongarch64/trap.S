@@ -42,6 +42,9 @@
  * set; a kernel trap never touches the FPRs, so kernel code that never uses
  * the FPU owes it no save. Executing fst.d with FPE clear would itself take
  * an FPD exception inside the prologue, hence the check.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/trap.S; CSR, EENTRY and
+ * psABI facts only from the Vol1 manual and psABI; no code copied.
  */
 
 #include "asmoffsets.h"

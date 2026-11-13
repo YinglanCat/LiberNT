@@ -22,6 +22,9 @@
  * software what kind of access missed ([V1-7.4.6] Table 21). That keeps
  * every presence decision in one place: this file never invents a fault
  * code, it forwards the architecturally reported one.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/trap.c; ESTAT and Ecode
+ * facts only from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntoskrnl.h>

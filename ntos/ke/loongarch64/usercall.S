@@ -14,6 +14,9 @@
  * The FP bank is saved only when EUEN.FPE is set: with the FPU disabled a
  * single fst.d would take an FPD exception (Ecode 0xf, [V1-7.4.6]) inside
  * the callout.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/usercall.S; psABI register
+ * facts only; no code copied.
  */
 
 #include "asmoffsets.h"

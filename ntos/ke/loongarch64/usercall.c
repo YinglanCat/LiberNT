@@ -3,6 +3,9 @@
  * LICENSE:     GPL-3.0-or-later (https://spdx.org/licenses/GPL-3.0-or-later)
  * COPYRIGHT:   Copyright 2026 Ahmed ARIF
  * PURPOSE:     LoongArch64 NT user APC, callback and context-return contract
+ *
+ * Provenance: structural port of ntos/ke/riscv64/usercall.c; CSR facts only
+ * from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntoskrnl.h>

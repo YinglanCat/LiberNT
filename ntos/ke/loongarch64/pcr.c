@@ -14,6 +14,9 @@
  * contract). This file is where that becomes true for every processor; the
  * boot processor does it in KiLa64InitializeBootPcr, an application
  * processor in its own startup stub.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/pcr.c; $r21 and psABI facts
+ * only from the LoongArch ELF psABI; no code copied.
  */
 
 #include <ntoskrnl.h>

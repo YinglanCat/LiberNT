@@ -8,6 +8,9 @@
  * fact below comes from a CPUCFG word, [3A5000] Table 54, or from a CSR the
  * loader already programmed. The record is per port state (one boot
  * processor identifies the machine), not a per-processor structure.
+ *
+ * Provenance: structural port of ntos/ke/riscv64/features.c; CPUCFG facts
+ * only from the 3A5000 and Vol1 manuals; no code copied.
  */
 
 #include <ntoskrnl.h>
@@ -87,12 +90,14 @@ KiLa64IdentifyProcessor(
 
     /* CPUCFG1.ARCH == 2 is the only encoding that describes this port's
      * instruction set. The 48-bit split the address space layer assumes
-     * (PGD indices 256-511 in the kernel half) needs VALEN == 48, which the
+     * (PGD indices 256-511 in the kernel half) needs the VALEN encoding 0x2F (48
+     * bits), which the
      * handoff contract G-1 records as a boot precondition; a part that
      * reports anything else leaves Valid clear so startup refuses to run. */
     Processor->Valid =
         ((CpuCfg1 & LA64_CPUCFG1_ARCH_MASK) == LA64_CPUCFG1_ARCH_LA64) &&
-        (((CpuCfg1 >> LA64_CPUCFG1_VALEN_SHIFT) & LA64_CPUCFG1_VALEN_MASK) == 48);
+        (((CpuCfg1 >> LA64_CPUCFG1_VALEN_SHIFT) & LA64_CPUCFG1_VALEN_MASK) ==
+         LA64_CPUCFG1_VALEN_48);
 
     UNREFERENCED_PARAMETER(LaBlock);
 }

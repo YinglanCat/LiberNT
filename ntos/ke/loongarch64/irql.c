@@ -24,6 +24,9 @@
  * HAL writes once at startup; this file always writes only the 12:0 field
  * with csrxchg, so ECFG.VS and any compatibility bits the loader left are
  * preserved ([V1-7.4.5]).
+ *
+ * Provenance: structural port of ntos/ke/riscv64/irql.c; ECFG/ESTAT facts
+ * only from the LoongArch Vol1 manual; no code copied.
  */
 
 #include <ntoskrnl.h>
