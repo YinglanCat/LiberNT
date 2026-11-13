@@ -532,7 +532,7 @@ BmReadUpdateStarts(
 
     Starts = strstr(Text, "Starts=");
     if (strstr(Text, Id) && Starts)
-        Count = strtoul(Starts + 7, NULL, 10);
+        Count = (ULONG)strtoul(Starts + 7, NULL, 10);
     return Count;
 }
 
